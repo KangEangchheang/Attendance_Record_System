@@ -6,6 +6,8 @@ import threading
 import time
 import cv2
 
+print("If the text isn't red, that mean it's working. :>")
+
 def run_face_recognition():
     # Initialize InsightFace
     app = init_face_analysis()
@@ -34,7 +36,7 @@ def run_face_recognition():
     recognition_thread = threading.Thread(target=recognition_worker, args=(frame_queue, request_queue, known_face_embeddings, known_face_ids), daemon=True)
     recognition_thread.start()
 
-    frame_skip = 15
+    frame_skip = 10
     frame_count = 0
 
     # Main loop

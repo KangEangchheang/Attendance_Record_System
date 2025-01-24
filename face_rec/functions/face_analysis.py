@@ -1,8 +1,6 @@
 import os
 import cv2
 from insightface.app import FaceAnalysis
-import onnxruntime as ort
-print(ort.get_available_providers())
 
 # Initialize InsightFace
 def init_face_analysis():
