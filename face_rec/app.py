@@ -12,6 +12,11 @@ def home():
     return "Welcome to the Car Price Prediction API!"
 
 
+@app.route('/image', methods=['POST'])
+def home():
+    return "Welcome to the Car Price Prediction API!"
+
+
 # Run the app
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)

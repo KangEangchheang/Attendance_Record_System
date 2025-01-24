@@ -1,88 +1,101 @@
-import cv2
-import face_recognition
-import requests
-import os
+from functions.camera import init_camera, list_available_cameras
+from functions.face_analysis import init_face_analysis, load_known_faces
+from functions.face_recognition import recognition_worker
+import queue
+import threading
 import time
+import cv2
 
-def list_available_cameras(max_cameras=10):
-    available_cameras = []
-    for index in range(max_cameras):
-        cap = cv2.VideoCapture(index)
-        if cap.isOpened():
-            available_cameras.append(index)
-            cap.release()
-    return available_cameras
+def run_face_recognition():
+    # Initialize InsightFace
+    app = init_face_analysis()
 
-# Load known faces and their IDs
-def load_known_faces(image_dir):
-    known_face_encodings = []
-    known_face_ids = []
+    # Load known faces
+    image_directory = "saved_faces/"
+    known_face_embeddings, known_face_ids = load_known_faces(image_directory, app)
 
-    for filename in os.listdir(image_dir): #employee images name should be ID+name
-        if filename.endswith(".jpg") or filename.endswith(".png"):
-            employee_id = os.path.splitext(filename)[0]  # Extract ID
-            image_path = os.path.join(image_dir, filename)
-            image = face_recognition.load_image_file(image_path)
-            encoding = face_recognition.face_encodings(image)[0]
+    # List available cameras and allow user to choose one
+    cameras = list_available_cameras()
+    if not cameras:
+        print("No cameras available!")
+        exit(1)
 
-            known_face_encodings.append(encoding)
-            known_face_ids.append(employee_id)
+    print("Available cameras:")
+    for i, cam in enumerate(cameras):
+        print(f"{i}: Camera {cam}")
+    selected_index = int(input("Select the camera index: "))
+    video_capture = init_camera(cameras[selected_index])
 
-    return known_face_encodings, known_face_ids
+    # Prepare queues
+    frame_queue = queue.Queue()
+    request_queue = queue.Queue()
 
-# Initialize known faces =========================================================================
-image_directory = "saved_faces/"  # Directory containing employee images
-known_face_encodings, known_face_ids = load_known_faces(image_directory)
+    # Start recognition worker thread
+    recognition_thread = threading.Thread(target=recognition_worker, args=(frame_queue, request_queue, known_face_embeddings, known_face_ids), daemon=True)
+    recognition_thread.start()
+
+    frame_skip = 15
+    frame_count = 0
+
+    # Main loop
+    while True:
+        ret, frame = video_capture.read()
+        if not ret:
+            print("Error: Failed to read frame. Exiting loop.")
+            break
+
+        resized_frame = cv2.resize(frame, (640, 640))  # Resize frame for InsightFace
+        faces = app.get(resized_frame)
+
+        face_locations = []
+        embeddings = []
+
+        for face in faces:
+            bbox = face.bbox.astype(int)
+            face_locations.append((bbox[1], bbox[2], bbox[3], bbox[0]))  # top, right, bottom, left
+            embeddings.append(face.normed_embedding)
+
+        # Skip frames for faster processing
+        if frame_count % frame_skip == 0:
+            frame_queue.put((frame, face_locations, embeddings))
+
+        for face, (top, right, bottom, left) in zip(faces, face_locations):
+            # Get the current width and height of the bounding box
+            width = right - left
+            height = bottom - top
+            
+            # Determine the size of the square based on the larger of the width or height
+            square_size = max(width, height)
+
+            # Calculate the center of the bounding box
+            center_x = (left + right) // 2
+            center_y = (top + bottom) // 2
+            
+            # Offset the square upwards by shifting the top a bit higher
+            offset = square_size // 4  # This controls how much higher the square moves (adjust this value as needed)
+            
+            # Calculate the new coordinates for the square
+            left = center_x - square_size // 2
+            right = center_x + square_size // 2
+            top = center_y - square_size // 2 - offset  # Move the square upwards
+            bottom = top + square_size  # Adjust the bottom accordingly to keep the square size constant
+
+            # Draw the square (with a yellow color and 1 pixel thickness)
+            cv2.rectangle(frame, (left, top), (right, bottom), (255, 225, 50), 1)  # Yellow square (BGR color)
 
 
+        # Show video feed
+        cv2.imshow("Video", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
-# Initialize camera =========================================================================
-cameras = list_available_cameras()
-print("Available cameras:")
-for i, cam in enumerate(cameras):
-    print(f"{i}: Camera {cam}")
-# Let the user choose a camera
-selected_index = int(input("Select the camera index: "))
-video_capture = cv2.VideoCapture(cameras[selected_index])
+        frame_count += 1
 
+    # Cleanup
+    video_capture.release()
+    cv2.destroyAllWindows()
+    frame_queue.put(None)
+    recognition_thread.join()
 
-# when video capture is live
-while True:
-    ret, frame = video_capture.read()
-    if not ret:
-        print("Failed to capture video frame")
-        break
-
-    # Convert frame to RGB
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    # Detect and encode faces in the frame
-    face_locations = face_recognition.face_locations(rgb_frame)
-    face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
-
-    for face_encoding in face_encodings:
-        matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-        if True in matches:
-            match_index = matches.index(True)
-            employee_id = known_face_ids[match_index]
-
-            # Send recognized employee ID to Nuxt server
-            payload = {"employee_id": employee_id}
-            try:
-                response = requests.post("http://localhost:3000/api/mark-attendance", json=payload)
-                print(f"Attendance marked for {employee_id}: {response.json()}")
-            except requests.RequestException as e:
-                print(f"Error sending data to Nuxt server: {e}")
-
-    # Show video feed
-    cv2.imshow("Video", frame)
-
-    # Quit on 'q'
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-
-
-# Cleanup
-video_capture.release()
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+    run_face_recognition()
