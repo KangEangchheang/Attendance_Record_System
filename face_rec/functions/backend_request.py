@@ -11,6 +11,7 @@ def send_recognition_request(employee_id):
     current_date = datetime.today().date()  # Get today's date
     # Get the employee ID prefix (splitting by underscore)
     employee_id_prefix = employee_id.split('_')[0]
+    employee_name = employee_id.split('_')[1]
     
     # Check if the employee_id has been processed before and if it's a new day
     if employee_id_prefix in last_recognition_request_time:
@@ -25,7 +26,7 @@ def send_recognition_request(employee_id):
     
     
     # Construct the URL for the request
-    url = f"http://localhost:3000/api/attendance/id={employee_id_prefix}&time={current_time}"
+    url = f"http://localhost:3000/api/log?id={employee_id_prefix}&name={employee_name}"
 
     try:
         last_recognition_request_time[employee_id_prefix] = current_time # ! dont forget to remove this when bakend work

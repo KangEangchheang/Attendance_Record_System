@@ -25,7 +25,7 @@ def recognition_worker(frame_queue, request_queue, known_face_embeddings, known_
                     similarity = np.dot(face_embedding, recognized_embedding)
                     
                     #the timout to get better performance 
-                    if similarity > 0.6 and (current_time - timestamp < 3):  # Skip re-recognition for known faces within the timeout period
+                    if similarity > 0.6 and (current_time - timestamp < 5):  # Skip re-recognition for known faces within the timeout period
                         break
                 else:
                     # Perform face recognition if not recognized already
@@ -43,7 +43,7 @@ def recognition_worker(frame_queue, request_queue, known_face_embeddings, known_
                         send_recognition_request(employee_id)
 
                         # Draw bounding box around the face
-                        cv2.rectangle(frame, (left, top), (right, bottom), (255, 255, 50), 2)
+                        cv2.rectangle(frame, (left, top), (right, bottom), (255, 255, 255), 2)
 
         except Exception as e:
             print(f"Error during face recognition: {e}")

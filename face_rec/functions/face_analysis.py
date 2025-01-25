@@ -1,11 +1,13 @@
 import os
 import cv2
 from insightface.app import FaceAnalysis
+import os
+os.environ['MXNET_GPU_MEM_POOL_RESERVE'] = '50'# Set memory limit to 2048 MB
 
 # Initialize InsightFace
 def init_face_analysis():
     app = FaceAnalysis(allowed_modules=["detection", "recognition"], verbose=False)
-    app.prepare(ctx_id=0, det_size=(640, 640))  # Use CPU
+    app.prepare(ctx_id=0, det_size=(320, 320))  # Use GPU (-1 for cpu)
     return app
 
 # Function to load known face embeddings
