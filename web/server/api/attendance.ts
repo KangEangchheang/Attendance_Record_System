@@ -1,32 +1,28 @@
-import { H3Event } from 'h3'
-import sqlite3 from 'sqlite3';
-import { open, Database } from 'sqlite';
+import { readFile } from 'fs/promises';
+import { defineEventHandler } from 'h3';
 
-let db: Database | null = null;
+export default defineEventHandler(async () => {
+    try {
+        const filePath = 'attendance.csv'; // Ensure correct path
+        const data = await readFile(filePath, 'utf8');
+        const rows = data.split('\n').map(row => row.split(','));
 
-export default defineEventHandler(async(event: H3Event) => {
-    if (!db) {
-        db = await open({
-        filename: '/database.sqlite',
-        driver: sqlite3.Database,
-        });
+        const attendance = rows.map(row => ({
+            time: row[1]?.trim(),
+            name: row[0]?.trim(),
+        })).filter(row => row.name && row.time); // Remove empty rows
+
+        return {
+            success: true,
+            message: 'Attendance data retrieved successfully',
+            data: attendance
+        };
+    } catch (err) {
+        console.error('Error reading CSV:', err);
+        return {
+            success: false,
+            message: 'Failed to retrieve attendance logs',
+            data: []
+        };
     }
-
-    const Attendance = await db.all(`
-        SELECT 
-            attendance.*, 
-            employee.name AS employee_name,
-        FROM 
-            attendance
-        JOIN 
-            amployee 
-        ON 
-            attendance.employee_id = employee.id;
-    `);
-
-    return {
-        success: true,
-        message: `Attendance logs retrieved successfully`,
-        data: Attendance
-    }
-})
+});

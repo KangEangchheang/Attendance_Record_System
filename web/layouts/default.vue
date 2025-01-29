@@ -25,7 +25,7 @@ import { Home, Users, Contact, Book } from 'lucide-vue-next'
               User
             </a> -->
 
-            <a href="/employee" class="flex items-center gap-3 rounded-lg px-3 py-2 font-semibold text-muted-foreground transition-all hover:text-primary hover:bg-white/10">
+            <a href="/about" class="flex items-center gap-3 rounded-lg px-3 py-2 font-semibold text-muted-foreground transition-all hover:text-primary hover:bg-white/10">
               <Book class="h-4 w-4" />
               About
             </a>

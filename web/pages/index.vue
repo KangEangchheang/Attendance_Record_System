@@ -1,80 +1,41 @@
+<template>
+  <div class="w-full p-4">
+    <!-- Page Title -->
+    <div class="flex my-6 items-center justify-between">
+      <h1 class="text-3xl font-bold text-gray-200">Attendance</h1>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto bg-gray-800 shadow-lg rounded-lg">
+      <table class="min-w-full border border-gray-700 text-gray-300">
+        <thead class="bg-gray-700 text-gray-200">
+          <tr>
+            <th class="py-3 px-4 text-left">Time</th>
+            <th class="py-3 px-4 text-left">Name</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in attendance" :key="index" class="border-b border-gray-700 hover:bg-gray-700">
+            <td class="py-3 px-4">{{ item.time }}</td>
+            <td class="py-3 px-4">{{ item.name }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
-import {
-  createColumnHelper,
-  FlexRender,
-  getCoreRowModel,
-  useVueTable,
-} from '@tanstack/vue-table'
-import { h, ref } from 'vue'
-
-export interface Attendance {
-  status: 'present' | 'late' | 'absent' 
-  name: string
-}
-
-const data = ref<Attendance[]>([]);
-
-onMounted(async ()=>{
-  const { data: fetchData, status, error } = await useFetch<Attendance[]>('/api/log');
-  data.value = fetchData.value || [];
-  console.log(data.value)
-})
-
-
-const columnHelper = createColumnHelper<Attendance>()
-
-const columns = [
-  columnHelper.accessor('status', {
-    enablePinning: true,
-    header: 'Status',
-    cell: ({ row }) => h('div', { class: 'capitalize' }, row.getValue('status')),
-  }),
-  columnHelper.accessor('name', {
-    header: () => h('div', { class: 'text-left' }, 'Name'),
-    cell: ({ row }) => h('div', { class: 'capitalize' }, row.getValue('name')),
-  }),
-]
-
-const table = useVueTable({
-  data,
-  columns,
-  getCoreRowModel: getCoreRowModel()
+const { data: attendance } = await useAsyncData('attendance', async () => {
+  const response = await fetch('/api/attendance');
+  const json = await response.json();
+  return json.data; // Ensure we're accessing the correct property
+});
+onMounted(() => {
+  refreshNuxtData('attendance');
 })
 </script>
 
-<template>
-  <div class="w-full p-2">
-    <!-- page title -->
-    <div class="flex my-8 ml-4 items-center justify-between">
-      <h1 class="text-3xl font-bold leading-tight tracking-tight text-white">
-        Attendance
-      </h1>
-    </div>
-
-    <Table>
-      <TableHeader class="bg-white/5 rounded-xl">
-        <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-          <TableHead v-for="header in headerGroup.headers" :key="header.id">
-            <FlexRender v-if="!header.isPlaceholder" :render="header.column.columnDef.header" :props="header.getContext()" />
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <template v-if="table.getRowModel().rows?.length">
-          <TableRow v-for="row in table.getRowModel().rows" :key="row.id">
-            <TableCell v-for="cell in row.getAllCells()" :key="cell.id">
-              <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-            </TableCell>
-            
-          </TableRow>
-        </template>
-
-        <TableRow v-else>
-          <TableCell :colspan="columns.length" class="h-24 text-center">
-            No results.
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
-    </div>
-</template>
+<style scoped>
+/* No additional styles needed since Tailwind is used */
+</style>
